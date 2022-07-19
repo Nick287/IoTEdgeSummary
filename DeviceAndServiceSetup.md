@@ -266,3 +266,21 @@ output "public_ssh" {
 ```
 
 ## 1.3 Setup The dev&test Environment
+
+As you know IoT Edge module is based on container technology, of course we can continue to use container development environment when developing.
+However, if we use edge-specific features, we need to set up the development environment such as message routing.
+
+You can set up the development environment and debug locally. Please follow the documentation below to set it up environment.
+[Use Visual Studio Code to develop and debug modules for Azure IoT Edge](https://docs.microsoft.com/en-us/azure/iot-edge/how-to-vs-code-develop-module?view=iotedge-2020-11)
+[Tutorial: Develop IoT Edge modules with Linux containers.](https://docs.microsoft.com/en-us/azure/iot-edge/tutorial-develop-for-linux?view=iotedge-2020-11)
+
+You can also consider the Dev Container environment, If you are familiar with containers this method may be more suitable for you.
+[Developing inside a Container](https://code.visualstudio.com/docs/remote/containers)
+![image](/img/architecture-containers.png)
+
+[Dev Container start steps](https://github.com/Azure/iotedgedev/wiki/quickstart)
+
+This dev container can give you as a full feature development environment you can take advantage of this.
+
+- this dev container already wrapping all the dependencies in the component such iot edge dev tools, python, docker compose etc.
+- secure development environment, you can run you code in the dev container that provides a secure dev environment that is not run on your local host.
