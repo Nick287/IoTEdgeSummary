@@ -7,8 +7,8 @@ You're talking with customer about manufacturing or industrial scenarios and sma
 This article will help you understand Azure IoT Edge's capabilities from different points.
 
 1. [Device and service setup](/DeviceAndServiceSetup.md)
-   1. Azure IoT Hub Device Provisioning Service (DPS)
-   2. IoTHub Provisioning ARM template and Three-party/ Cross-platform solution (Terraform)
+   1. [Azure IoT Hub Device Provisioning Service (DPS)](/DeviceAndServiceSetup.md#11-azure-iot-hub-device-provisioning-service-dps)
+   2. [IoTHub Provisioning ARM template and Three-party/ Cross-platform solution (Terraform)](/DeviceAndServiceSetup.md#12-iothub-and-device-provision)
    3. Quickly setup the dev&test environment
 2. Data storage and exchange
    1. Local storage - IO

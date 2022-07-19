@@ -48,7 +48,7 @@ So you can use Three-party/ Cross-platform solution (Terraform) to deploy and co
 
 Similar to the ARM template, you can also set the resource service level for deployment (account_tier= "Standard" and sku {name = "S1" capacity = "1"})
 
-```json
+```javascript 
 resource "azurerm_resource_group" "example" {
   name     = "example-resources"
   location = "West Europe"
@@ -160,7 +160,7 @@ Alternatively, you can use Cloud-init to deploy a virtual machine to complete th
 
 Please refer to the full script [CSE CodeHub](https://dev.azure.com/CSECodeHub/435025%20-%20Telstra%20-%20MLOps%20for%20Smart%20Video%20Platform%20LVA/_git/435025%20-%20Telstra%20-%20IaC?path=/terraform&version=GBmain)
 
-```json
+```javascript 
 # Create Virtual IoT Edge Device
 
 resource "azurerm_public_ip" "iot_edge" {
@@ -264,3 +264,5 @@ output "public_ssh" {
   value = "ssh -i ../.ssh/id_rsa ${var.IOT_EDGE_VM_USERNAME}@${azurerm_public_ip.iot_edge.fqdn}"
 }
 ```
+
+## 1.3 Setup The dev&test Environment
