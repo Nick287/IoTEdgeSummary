@@ -10,9 +10,9 @@ This article will help you understand Azure IoT Edge's capabilities from differe
    1. [Azure IoT Hub Device Provisioning Service (DPS)](/DeviceAndServiceSetup.md#11-azure-iot-hub-device-provisioning-service-dps)
    2. [IoTHub Provisioning ARM template and Three-party/ Cross-platform solution (Terraform)](/DeviceAndServiceSetup.md#12-iothub-and-device-provision)
    3. [Quickly setup the dev&test environment](/DeviceAndServiceSetup.md#13-setup-the-devtest-environment)
-2. Data storage and exchange
-   1. Local storage - IO
-   2. Share file/data between Edge module
+2. [Data storage and exchange](/DataStorageAndExchange.md)
+   1. [Local storage - IO](/DataStorageAndExchange.md#21-local-storage---io)
+   2. [Share file/data between Edge module](/DataStorageAndExchange.md#22-share-filedata-between-edge-module)
    3. Local database SQL server
    4. Sync data between cloud and Edge device
 3. AI (Artificial intelligence) capabilities
