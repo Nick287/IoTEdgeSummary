@@ -12,7 +12,7 @@ This article will help you understand Azure IoT Edge's capabilities from differe
    3. [Quickly setup the dev&test environment](/DeviceAndServiceSetup.md#13-setup-the-devtest-environment)
 2. Data storage and exchange
    1. Local storage - IO
-   2. Share file/Data between Edge module
+   2. Share file/data between Edge module
    3. Local database SQL server
    4. Sync data between cloud and Edge device
 3. AI (Artificial intelligence) capabilities

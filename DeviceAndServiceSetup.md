@@ -48,7 +48,7 @@ So you can use Three-party/ Cross-platform solution (Terraform) to deploy and co
 
 Similar to the ARM template, you can also set the resource service level for deployment (account_tier= "Standard" and sku {name = "S1" capacity = "1"})
 
-```javascript 
+```javascript
 resource "azurerm_resource_group" "example" {
   name     = "example-resources"
   location = "West Europe"
