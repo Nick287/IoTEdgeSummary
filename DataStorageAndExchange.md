@@ -174,6 +174,6 @@ As I mentioned above, messages are limited in size, so consider using blob or ty
 
 Two options
 
-Option 1 you can access cloud resources directly in the Edge Module using the BLOb SDK, whether upload or download data. but make sure your Edge device is online.
+Option 1 you can access cloud resources directly in the Edge Module using the [blob SDK](https://docs.microsoft.com/en-us/azure/storage/blobs/storage-quickstart-blobs-python?tabs=environment-variable-windows), whether upload or download data. but make sure your Edge device is online.
 
 Option 2 [deviceToCloudUpload](https://docs.microsoft.com/en-us/azure/iot-edge/how-to-store-data-blob?view=iotedge-2020-11) is a configurable functionality. This function automatically uploads the data from your local blob storage to Azure with intermittent internet connectivity support.
