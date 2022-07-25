@@ -13,8 +13,8 @@ This article will help you understand Azure IoT Edge's capabilities from differe
 2. [Data storage and exchange](/DataStorageAndExchange.md)
    1. [Local storage - IO](/DataStorageAndExchange.md#21-local-storage---io)
    2. [Share file/data between Edge module](/DataStorageAndExchange.md#22-share-filedata-between-edge-module)
-   3. [Local database SQL server]()
-   4. [Sync data between cloud and Edge device]()
+   3. [Local database SQL server](/DataStorageAndExchange.md#23-local-database-sql-server)
+   4. [Sync data between cloud and Edge device](/DataStorageAndExchange.md#24-sync-data-between-cloud-and-edge-device)
 3. AI (Artificial intelligence) capabilities
    1. TensorFlow model enable on Edge device
    2. Cross-platform solution ONNX (Open Neural Network Exchange)
