@@ -19,9 +19,9 @@ This article will help you understand Azure IoT Edge's capabilities from differe
    1. [TensorFlow model enable on Edge device](/AIcapabilities.md#tensorflow-model-enable-on-edge-device)
    2. [Cross-platform solution ONNX (Open Neural Network Exchange)](/AIcapabilities.md#open-neural-network-exchange-onnx)
 4. [Devops](/EdgeDevops.md)
-   1. Package of multiple images(Multiple development languages) and upload to container registry (Parallel processing)
-   2. Image version control
-   3. Deployment file for Edge device
+   1. [Package of multiple images(Multiple development languages) and upload to container registry (Parallel processing)](/EdgeDevops.md#package-images-and-upload-to-container-registry)
+   2. [Image version control](/EdgeDevops.md#imagetag-used-for-version-control)
+   3. [Deployment file for Edge device](/EdgeDevops.md#edge-module-image-deployment)
 5. Integration testing
    1. Integrated test pattern
    2. Code sample
