@@ -23,5 +23,5 @@ This article will help you understand Azure IoT Edge's capabilities from differe
    2. [Image version control](/EdgeDevops.md#imagetag-used-for-version-control)
    3. [Deployment file for Edge device](/EdgeDevops.md#edge-module-image-deployment)
 5. [Integration test](/IntegrationTest.md)
-   1. Integrated test pattern
-   2. Sample code
+   1. [Integrated test pattern](/IntegrationTest.md#integration-test)
+   2. [Sample code](/IntegrationTest.md#verify-the-result-by-iot-hub-synchronization-data-with-edge-device)
