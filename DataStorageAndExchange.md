@@ -172,7 +172,7 @@ Therefore, if you only need data synchronization, Twin may be the best choice. I
 
 As I mentioned above, messages are limited in size, so consider using blob or type services to host content when transferring large files between Edge devices and the cloud.
 
-Two options
+### Two options
 
 Option 1 you can access cloud resources directly in the Edge Module using the [blob SDK](https://docs.microsoft.com/en-us/azure/storage/blobs/storage-quickstart-blobs-python?tabs=environment-variable-windows), whether upload or download data. but make sure your Edge device is online.
 
