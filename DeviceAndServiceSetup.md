@@ -22,7 +22,7 @@ The following diagram shows how a device connects to IoTHub through DPS step by 
 Some customers can use Azure Portal to create IoTHub directly to meet their requirements, but most customers have development environments, staging, and multiple production environments, which can be challenging to deploy and maintain consistency.
 In real customer scenarios there are often have multiple Azure service in same or different resource groups, so keeping them consistent can be challenging as well. In order to this, Scripts can be used to deploy and configure these Azure resources to ensure consistency. Humans can easily make mistakes, but machines not. We can trust scripts (infrastructure as code).
 
-The best way to deploy Azure resources and configure? ARM templates! [What are ARM templates?](https://docs.microsoft.com/en-us/azure/azure-resource-manager/templates/overview){:height="100px" width="400px"}
+The best way to deploy Azure resources and configure? ARM templates! [What are ARM templates?](https://docs.microsoft.com/en-us/azure/azure-resource-manager/templates/overview)
 
 So the script allows us to quickly replicate the environment and configure the environment through parameters. It is also reliable when you want to delete or make changes to complex environments, then replicate. For example, the dev environment need deploys emulators, but the production environment does not.
 
