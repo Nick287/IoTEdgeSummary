@@ -1,0 +1,314 @@
+trigger: none
+pr: none
+variables:
+- group: smvi-ae-vrg-cdtst-ssdev
+- group: smvi-ae-vrg-iackv-ssdev
+- group: smvi-ae-vrg-iacpl-ssdev
+
+pool: $(AGENT_POOL)
+
+stages:
+- stage: trigger_mlops_pipeline_stage
+  displayName: 'Trigger MLOps ADO pipeline'
+  jobs:
+  - job: trigger_mlops_pipeline_job
+    displayName: 'Trigger MLOps ADO pipeline by az devops CLI'
+    timeoutInMinutes: 0
+    steps:
+    - script: |
+        chmod +x integration-test/mlops/trigger_and_wait_mlops_ado_pipeline.sh
+        integration-test/mlops/trigger_and_wait_mlops_ado_pipeline.sh
+      workingDirectory: '$(System.DefaultWorkingDirectory)'
+      displayName: 'Trigger and wait MLOps ADO pipeline completion'
+      name: 'triggerMLOpsADOPipeline'
+      env:
+        ORG_URI: $(System.CollectionUri)
+        TEAM_PROJECT: $(System.TeamProject)
+        PIPELINE_NAME: $(MLOPS_ADO_PIPELINE_NAME)
+        BRANCH: $(Build.SourceBranch)
+        ACCESS_TOKEN: $(ADO_PAT)
+
+- stage: validate_model_upload_status_stage
+  displayName: 'Validate model upload status'
+  dependsOn: trigger_mlops_pipeline_stage
+  condition: succeeded('trigger_mlops_pipeline_stage')
+  variables:
+    - name: modelNameUploadedToBlobStorage
+      value: $[ stageDependencies.trigger_mlops_pipeline_stage.trigger_mlops_pipeline_job.outputs['triggerMLOpsADOPipeline.modelNameUploadedToBlobStorage'] ]
+    - name: modelZIPContentsMD5
+      value: $[ stageDependencies.trigger_mlops_pipeline_stage.trigger_mlops_pipeline_job.outputs['triggerMLOpsADOPipeline.modelZIPContentsMD5'] ]
+  jobs:
+  - job: validate_model_upload_status_job
+    displayName: 'Validate model upload status'
+    pool: $(AGENT_POOL)
+
+    steps:
+    - script: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+      displayName: 'Install dependencies'
+      workingDirectory: "$(System.DefaultWorkingDirectory)/integration-test/"
+
+    - script: |
+        python -m pytest mlops/test_uploaded_model.py --junitxml=test_mlops.xml
+      workingDirectory: '$(System.DefaultWorkingDirectory)/integration-test/'
+      displayName: "Validate uploaded model"
+      env:
+        STORAGE_ACCOUNT_NAME: $(MODEL_STORAGE_ACCOUNT_NAME)
+        STORAGE_ACCOUNT_KEY: $(MODEL-STORAGE-ACCOUNT-KEY)
+        STORAGE_ACCOUNT_CONTAINER: $(MODEL_STORAGE_ACCOUNT_CONTAINER)
+        UPLOADED_MODEL_NAME: $(modelNameUploadedToBlobStorage)
+        UPLOADED_MODEL_ZIP_CONTENTS_MD5: $(modelZIPContentsMD5)
+
+    - task: PublishTestResults@2
+      inputs:
+        testResultsFormat: 'JUnit'
+        testResultsFiles: '**/test_*.xml'
+        testRunTitle: 'Publish test results'
+      displayName: 'Publish test results'
+      condition: succeededOrFailed()
+
+  - job: pass_var_to_next_stage_job
+    displayName: 'Pass variable to next stage'
+    steps:
+    - script: |
+        echo "##vso[task.setvariable variable=latestModelName;isOutput=true]$(modelNameUploadedToBlobStorage)"
+      name: 'passUploadedModelNameToNextStage'
+      displayName: 'Pass latest uploaded model name to next stage'
+
+- stage: 'AML_Trigger_WebAPI'
+  displayName: 'AML Trigger WebAPI'
+  dependsOn: validate_model_upload_status_stage
+  condition: and( not(failed()), not(canceled()) )
+  variables:
+    - name: LATEST_AI_MODEL_NAME
+      value: $[ stageDependencies.validate_model_upload_status_stage.pass_var_to_next_stage_job.outputs['passUploadedModelNameToNextStage.latestModelName'] ]
+  jobs:
+  - job: 'Trigger_Integration_Test'
+    displayName: 'AML Trigger WebAPI'
+    pool:
+      $(AGENT_POOL)
+
+    steps:
+    - script: |
+        python -m pip install --upgrade pip
+        python -m pip install -r requirements.txt
+      displayName: 'Install dependencies'
+      workingDirectory: "$(System.DefaultWorkingDirectory)/integration-test/"
+
+    - script: |
+        if [ -z $(LATEST_AI_MODEL_NAME) ]
+        then
+          echo "LATEST_AI_MODEL_NAME is null, use default value instead: $(DEFAULT_AI_MODEL_NAME)"
+          echo "##vso[task.setvariable variable=LATEST_AI_MODEL_NAME]$(DEFAULT_AI_MODEL_NAME)"
+        fi
+      displayName: 'Use default AI Model name if MLOps stages are skipped'
+
+    # Run pytest test cases
+    - script: |
+        python -m pytest edge/test_WebAPI_trigger.py -s --doctest-modules --junitxml=test_webapi.xml
+      workingDirectory: '$(System.DefaultWorkingDirectory)/integration-test/'
+      displayName: "AML Trigger WebAPI"
+      env:
+        EDGE_DEVICE_ID: $(EDGE_DEVICE_ID)
+        LATEST_AI_MODEL_NAME: $(LATEST_AI_MODEL_NAME)
+        WEBAPI_URL: $(WEBAPI_URL)
+        WEBAPI_HEADER_KEY: $(WEBAPI_HEADER_KEY)
+        WEBAPI_HEADER_VALUE: $(WEBAPI_HEADER_VALUE)
+    
+    - task: PublishTestResults@2
+      inputs:
+        testResultsFormat: 'JUnit'
+        testResultsFiles: '**/test_*.xml'
+        testRunTitle: 'Publish test results'
+      displayName: 'Publish test results'
+      condition: succeededOrFailed()
+
+- stage: 'Validate_Edge_Device_Module'
+  displayName: 'Validate Edge Device Module'
+  dependsOn:
+  - validate_model_upload_status_stage
+  - AML_Trigger_WebAPI
+  condition: succeeded('AML_Trigger_WebAPI')
+  variables:
+    - name: LATEST_AI_MODEL_NAME
+      value: $[ stageDependencies.validate_model_upload_status_stage.pass_var_to_next_stage_job.outputs['passUploadedModelNameToNextStage.latestModelName'] ]
+  jobs:
+  - job: 'Validate_Integration_Test'
+    displayName: 'Validate Edge Device Module'
+    pool:
+      $(AGENT_POOL)
+
+    steps:
+    - script: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+      displayName: 'Install dependencies'
+      workingDirectory: "$(System.DefaultWorkingDirectory)/integration-test/"
+
+    - script: |
+        if [ -z $(LATEST_AI_MODEL_NAME) ]
+        then
+          echo "LATEST_AI_MODEL_NAME is null, use default value instead: $(DEFAULT_AI_MODEL_NAME)"
+          echo "##vso[task.setvariable variable=LATEST_AI_MODEL_NAME]$(DEFAULT_AI_MODEL_NAME)"
+        fi
+      displayName: 'Use default AI Model name if MLOps stages are skipped'
+
+    - script: |
+        python -m pytest edge/test_EdgeDevice_verify.py -s --doctest-modules --junitxml=test_edgedevice.xml
+      workingDirectory: '$(System.DefaultWorkingDirectory)/integration-test/'
+      displayName: "Validate Edge Device Module"
+      env:
+        EDGE_DEVICE_ID: $(EDGE_DEVICE_ID)
+        LATEST_AI_MODEL_NAME: $(LATEST_AI_MODEL_NAME)
+        IOTHUB_CONNECTION_STRING: $(IOTHUB-CONNECTION-STRING)
+        EDGE_DOWNLOADER_MODULE_NAME: $(EDGE_DOWNLOADER_MODULE_NAME)
+        EDGE_SPATIAL_ANALYSIS_MODULE_NAME: $(EDGE_SPATIAL_ANALYSIS_MODULE_NAME)
+        WATTING_TIME: $(DOWNLOADMODULE_WATTING_TIME)
+
+    - task: PublishTestResults@2
+      inputs:
+        testResultsFormat: 'JUnit'
+        testResultsFiles: '**/test_*.xml'
+        testRunTitle: 'Publish test results'
+      displayName: 'Publish test results'
+      condition: succeededOrFailed()
+
+- stage: 'Validate_AVA_On_Edge'
+  pool:
+    vmImage: ubuntu-latest
+  displayName: 'Validate AVA On Edge'
+  jobs:
+  - job: validate_ava_on_edge_jobs
+    displayName: 'Validate Edge AVA Device'
+    steps:
+    - bash: az extension add --name azure-iot
+      displayName: 'Add IoT Extension'
+
+    - bash: az --version
+      displayName: 'Show Azure CLI version'
+
+    - script: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+      displayName: 'Install dependencies'
+      workingDirectory: "$(System.DefaultWorkingDirectory)/integration-test/"
+
+    - task: CopyFiles@2
+      displayName: Copy AVA topologies
+      inputs:
+        contents: 'topologies/**'
+        targetFolder: $(Build.ArtifactStagingDirectory)/DeploymentManifest
+        cleanTargetFolder: false
+        sourceFolder: $(System.DefaultWorkingDirectory)/edgesmartvideo
+      
+    - task: PowerShell@2
+      displayName: Set AVA config info
+      name: setvarStep
+      inputs:
+        targetType: 'inline'
+        script: |
+          $pipelineTopologySetJSON = Get-content $env:pipelineTopologySet
+          $livePipelineSetJSON = Get-content $env:livePipelineSet
+          $livePipelineActivateJSON = Get-content $env:livePipelineActivate
+          
+          echo "##vso[task.setvariable variable=pipelineTopologySet;isOutput=true]$pipelineTopologySetJSON"
+          echo "##vso[task.setvariable variable=livePipelineSet;isOutput=true]$livePipelineSetJSON"
+          echo "##vso[task.setvariable variable=livePipelineActivate;isOutput=true]$livePipelineActivateJSON"
+        pwsh: true
+        workingDirectory: '$(Build.ArtifactStagingDirectory)/DeploymentManifest/topologies/grpc-extension'
+      env:
+        pipelineTopologySet: 'pipelineTopologySet.json'
+        livePipelineSet: 'livePipelineSet.json'
+        livePipelineActivate: 'livePipelineActivate.json'
+
+    - task: Bash@3
+      displayName: Show AVA Command
+      inputs:
+        targetType: 'inline'
+        script: |
+          # Write your commands here
+          echo $(setvarStep.pipelineTopologySet)
+          echo $(setvarStep.livePipelineSet)
+          echo $(setvarStep.livePipelineActivate)
+
+    - task: AzureCLI@2
+      displayName: pipelineTopologySet
+      inputs:
+        azureSubscription: $(AZURE_RM_SVC_CONNECTION)
+        scriptType: 'bash'
+        scriptLocation: 'inlineScript'
+        inlineScript: |
+          az iot hub invoke-module-method -n $(IOTHUB_NAME) -d  $(EDGE_DEVICE_ID) -m 'avaedge' --method-name 'pipelineTopologySet'  --method-payload \
+          '
+          $(setvarStep.pipelineTopologySet)
+          '
+
+    - task: AzureCLI@2
+      displayName: livePipelineSet
+      inputs:
+        azureSubscription: $(AZURE_RM_SVC_CONNECTION)
+        scriptType: 'bash'
+        scriptLocation: 'inlineScript'
+        inlineScript: |
+          az iot hub invoke-module-method -n $(IOTHUB_NAME) -d  $(EDGE_DEVICE_ID) -m 'avaedge' --method-name 'livePipelineSet'  --method-payload \
+          '
+          $(setvarStep.livePipelineSet)
+          '
+
+    - task: AzureCLI@2
+      displayName: livePipelineActivate
+      name: livePipelineActivate
+      inputs:
+        azureSubscription: $(AZURE_RM_SVC_CONNECTION)
+        scriptType: 'bash'
+        scriptLocation: 'inlineScript'
+        inlineScript: |
+          az iot hub invoke-module-method -n $(IOTHUB_NAME) -d  $(EDGE_DEVICE_ID) -m 'avaedge' --method-name 'livePipelineActivate'  --method-payload \
+          '
+          $(setvarStep.livePipelineActivate)
+          '
+   
+    - script: |
+        pytest edge/test_ava_EdgeDevice.py -s --doctest-modules --junitxml=test_edgedevice.xml
+      workingDirectory: '$(System.DefaultWorkingDirectory)/integration-test/'
+      displayName: "Validate Edge Device Module"
+      env:
+        EDGE_DEVICE_ID: $(EDGE_DEVICE_ID)
+        IOTHUB_EVENTHUB_CONNECTION_STRING: $(EVENT-HUB-CONNECTION-STRING)
+
+    - task: PublishTestResults@2
+      inputs:
+        testResultsFormat: 'JUnit'
+        testResultsFiles: '**/test_*.xml'
+        testRunTitle: 'Publish test results'
+      displayName: 'Publish test results'
+      condition: succeededOrFailed()
+
+    - task: PowerShell@2
+      condition: always()
+      displayName: Set AVA config info
+      name: setvarStep2
+      inputs:
+        targetType: 'inline'
+        script: |
+          $livePipelineDeactivateJSON = Get-content $env:livePipelineDeactivate
+          
+          echo "##vso[task.setvariable variable=livePipelineDeactivate;isOutput=true]$livePipelineDeactivateJSON"
+        pwsh: true
+        workingDirectory: '$(Build.ArtifactStagingDirectory)/DeploymentManifest/topologies/grpc-extension'
+      env:
+        livePipelineDeactivate: 'livePipelineDeactivate.json'
+
+    - task: AzureCLI@2
+      condition: always()
+      displayName: livePipelineDeactivate
+      inputs:
+        azureSubscription: $(AZURE_RM_SVC_CONNECTION)
+        scriptType: 'bash'
+        scriptLocation: 'inlineScript'
+        inlineScript: |
+          az iot hub invoke-module-method -n $(IOTHUB_NAME) -d  $(EDGE_DEVICE_ID) -m 'avaedge' --method-name 'livePipelineDeactivate'  --method-payload \
+          '
+          $(setvarStep2.livePipelineDeactivate)
+          '  

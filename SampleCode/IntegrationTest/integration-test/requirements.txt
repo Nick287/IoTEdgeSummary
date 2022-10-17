@@ -1,0 +1,4 @@
+azure-iot-hub
+azure-storage-blob
+azure-eventhub
+pytest

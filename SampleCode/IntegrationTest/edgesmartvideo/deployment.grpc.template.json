@@ -1,0 +1,196 @@
+{
+  "$schema-template": "2.0.0",
+  "modulesContent": {
+    "$edgeAgent": {
+      "properties.desired": {
+        "schemaVersion": "1.1",
+        "runtime": {
+          "type": "docker",
+          "settings": {
+            "minDockerVersion": "v1.25",
+            "loggingOptions": "",
+            "registryCredentials": {
+              "${CONTAINER_REGISTRY_NAME}": {
+                "username": "${CONTAINER_REGISTRY_USERNAME}",
+                "password": "${CONTAINER_REGISTRY_PASSWORD}",
+                "address": "${CONTAINER_REGISTRY_ADDRESS}"
+              }
+            }
+          }
+        },
+        "systemModules": {
+          "edgeAgent": {
+            "type": "docker",
+            "settings": {
+              "image": "mcr.microsoft.com/azureiotedge-agent:1.2",
+              "createOptions": {}
+            }
+          },
+          "edgeHub": {
+            "type": "docker",
+            "status": "running",
+            "restartPolicy": "always",
+            "settings": {
+              "image": "mcr.microsoft.com/azureiotedge-hub:1.2",
+              "createOptions": {
+                "HostConfig": {
+                  "PortBindings": {
+                    "5671/tcp": [
+                      {
+                        "HostPort": "5671"
+                      }
+                    ],
+                    "8883/tcp": [
+                      {
+                        "HostPort": "8883"
+                      }
+                    ],
+                    "443/tcp": [
+                      {
+                        "HostPort": "443"
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "modules": {
+          "avaedge": {
+            "version": "1.0",
+            "type": "docker",
+            "status": "running",
+            "restartPolicy": "always",
+            "settings": {
+              "image": "mcr.microsoft.com/media/video-analyzer:1",
+              "createOptions": {
+                "HostConfig": {
+                  "LogConfig": {
+                    "Type": "",
+                    "Config": {
+                      "max-size": "10m",
+                      "max-file": "10"
+                    }
+                  },
+                  "Binds": [
+                    "$VIDEO_OUTPUT_FOLDER_ON_DEVICE:/var/media/",
+                    "$APPDATA_FOLDER_ON_DEVICE:/var/lib/videoanalyzer"
+                  ],
+                  "IpcMode": "host",
+                  "ShmSize": 1536870912
+                }
+              }
+            }
+          },
+          "avaextension": {
+            "version": "1.0",
+            "type": "docker",
+            "status": "running",
+            "restartPolicy": "always",
+            "settings": {
+              "image": "$CONTAINER_REGISTRY_ADDRESS/avamodules/grpcextension:$TAG_IMAGE",
+              "createOptions": {
+                "HostConfig": {
+                  "LogConfig": {
+                    "Type": "",
+                    "Config": {
+                      "max-size": "10m",
+                      "max-file": "10"
+                    }
+                  },
+                  "IpcMode": "container:avaedge",
+                  "Binds": [
+                    "$VIDEO_OUTPUT_FOLDER_ON_DEVICE:/var/media/",
+                    "$APPDATA_FOLDER_ON_DEVICE:/var/lib/videoanalyzer"
+                  ]
+                },
+                "Env": [
+                  "grpcBinding=tcp://0.0.0.0:5001",
+                  "batchSize=1"
+                ]
+              }
+            }
+          },
+          "rtspsim": {
+            "version": "1.0",
+            "type": "docker",
+            "status": "running",
+            "restartPolicy": "always",
+            "settings": {
+              "image": "mcr.microsoft.com/ava-utilities/rtspsim-live555:1.2",
+              "createOptions": {
+                "HostConfig": {
+                  "LogConfig": {
+                    "Type": "",
+                    "Config": {
+                      "max-size": "10m",
+                      "max-file": "10"
+                    }
+                  },
+                  "Binds": [
+                    "$VIDEO_INPUT_FOLDER_ON_DEVICE:/live/mediaServer/media"
+                  ],
+                  "PortBindings": {
+                       "554/tcp": [
+                           {
+                               "HostPort": "5001"
+                           }
+                       ]
+                  }
+                }
+              }
+            }
+          },
+          "DownloaderModule": {
+            "version": "1.0",
+            "type": "docker",
+            "env": {
+              "storageFolder": {
+                "value": "/iotedge/storage/"
+              }
+            },
+            "status": "running",
+            "restartPolicy": "always",
+            "settings": {
+              "image": "$CONTAINER_REGISTRY_ADDRESS/avamodules/downloadermodule:$TAG_IMAGE",
+              "createOptions": {
+                "HostConfig": {
+                  "Binds": [
+                    "$APPDATA_FOLDER_ON_DEVICE:/iotedge/storage/"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "$edgeHub": {
+      "properties.desired": {
+        "schemaVersion": "1.1",
+        "routes": {
+          "AVAToHub": "FROM /messages/modules/avaedge/outputs/* INTO $upstream",
+          "DownloaderModuleToIoTHub": "FROM /messages/modules/DownloaderModule/outputs/* INTO $upstream",
+          "DownloaderModuleToSpatialAnalysis": "FROM /messages/modules/DownloaderModule/outputs/DLModelOutput INTO BrokeredEndpoint(\"/modules/avaextension/inputs/AIMessageInput\")"
+        },
+        "storeAndForwardConfiguration": {
+          "timeToLiveSecs": 7200
+        }
+      }
+    },
+    "avaedge": {
+      "properties.desired": {
+        "applicationDataDirectory": "/var/lib/videoanalyzer",
+        "ProvisioningToken": "$AVA_PROVISIONING_TOKEN",
+        "diagnosticsEventsOutputName": "diagnostics",
+        "operationalEventsOutputName": "operational",
+        "logLevel": "information",
+        "logCategories": "application, events",
+        "debugLogsDirectory": "/tmp/logs",
+        "allowUnsecuredEndpoints": true,
+        "telemetryOptOut": false
+      }
+    }
+  }
+}

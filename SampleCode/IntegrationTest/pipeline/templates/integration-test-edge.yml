@@ -1,0 +1,29 @@
+parameters:
+- name: LATEST_AI_MODEL_NAME
+  type: string
+
+
+steps:
+# Run pytest test cases
+- script: |
+    pytest edge/test_WebAPI_trigger.py -s --doctest-modules --junitxml=test_webapi.xml
+  workingDirectory: '$(System.DefaultWorkingDirectory)/integration-test/'
+  displayName: "Trigger WebAPI"
+  env:
+    EDGE_DEVICE_ID: $(EDGE_DEVICE_ID)
+    LATEST_AI_MODEL_NAME: ${{ parameters.LATEST_AI_MODEL_NAME }}
+    WEBAPI_URL: $(WEBAPI_URL)
+    WEBAPI_HEADER_KEY: $(WEBAPI_HEADER_KEY)
+    WEBAPI_HEADER_VALUE: $(WEBAPI_HEADER_VALUE)
+
+- script: |
+    pytest edge/test_EdgeDevice_verify.py -s --doctest-modules --junitxml=test_edgedevice.xml
+  workingDirectory: '$(System.DefaultWorkingDirectory)/integration-test/'
+  displayName: "Verify Edge Device Module"
+  env:
+    EDGE_DEVICE_ID: $(EDGE_DEVICE_ID)
+    LATEST_AI_MODEL_NAME: ${{ parameters.LATEST_AI_MODEL_NAME }}
+    IOTHUB_CONNECTION_STRING: $(IOTHUB_CONNECTION_STRING)
+    EDGE_DOWNLOADER_MODULE_NAME: $(EDGE_DOWNLOADER_MODULE_NAME)
+    EDGE_SPATIAL_ANALYSIS_MODULE_NAME: $(EDGE_SPATIAL_ANALYSIS_MODULE_NAME)
+    WATTING_TIME: $(WATTING_TIME)
