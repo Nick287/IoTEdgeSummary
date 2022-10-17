@@ -1,0 +1,133 @@
+trigger: none
+pr: none
+variables:
+# - group: smvi-ae-vrg-egdep-ssdev1.5
+- group: smvi-ae-vrg-iacpl-ssdev
+- group: smvi-ae-vrg-iackv-ssdev
+- group: smvi-ae-vrg-cdtst-ssdev
+
+pool:
+  vmImage: ubuntu-latest
+# pool:
+#   name: $(AGENT_POOL)
+
+stages:
+- stage: 'Build_and_Push_Docker_Images'
+  displayName: 'Build And Push Edge Module Image'
+
+  jobs:
+  - job: BuildDockerImagegrpcExtension
+    pool:
+      vmImage: "ubuntu-latest"
+    displayName: "Build Image grpcExtension"
+    steps:
+      - template: templates/Build_and_Push_Docker_Image.yml
+        parameters:
+          AppName: avamodules/grpcExtension
+          ACR: $(IMG_CONTAINER_REGISTRY_SVC_CONNECTION)
+          buildContext: edgesmartvideo/modules/grpcExtension
+          Dockerfile: edgesmartvideo/modules/grpcExtension/docker/Dockerfile
+          ImageTag: $(Build.BuildId)
+
+  - job: BuildDockerImageDownloaderModule
+    pool:
+      vmImage: "ubuntu-latest"
+    displayName: "Build Image DownloaderModule"
+    steps:
+      - template: templates/Build_and_Push_Docker_Image.yml
+        parameters:
+          AppName: avamodules/DownloaderModule
+          ACR: $(IMG_CONTAINER_REGISTRY_SVC_CONNECTION)
+          buildContext: edgesmartvideo/modules/DownloaderModule
+          Dockerfile: edgesmartvideo/modules/DownloaderModule/Dockerfile.amd64
+          ImageTag: $(Build.BuildId)
+
+- stage: 'Generate_Edge_Deployment_Manifest'
+  displayName: 'Generate Edge Deployment Manifest'
+  dependsOn: Build_and_Push_Docker_Images
+  condition: succeeded('Build_and_Push_Docker_Images')
+  jobs:
+  - job: 'Generate_Edge_Deployment_Manifest'
+    displayName: 'Generate Edge Deployment Manifest'
+    steps:
+    - task: Bash@3
+      displayName: Add Azure IoT Extensions
+      inputs:
+        targetType: 'inline'
+        script: 'pip install -U iotedgedev'
+
+    - task: AzureIoTEdge@2
+      displayName: 'Generate Edge Deployment Manifest'
+      inputs:
+        action: 'Generate deployment manifest'
+        templateFilePath: '$(System.DefaultWorkingDirectory)/edgesmartvideo/deployment.grpc.template.json'
+        defaultPlatform: 'amd64'
+        deploymentManifestOutputPath: '$(System.DefaultWorkingDirectory)/edgeconfig/config/deployment.json'
+        validateGeneratedDeploymentManifest: 'true'
+      env:
+        CONTAINER_REGISTRY_NAME: $(IMG_CONTAINER_REGISTRY_NAME)
+        CONTAINER_REGISTRY_USERNAME: $(IMG_CONTAINER_REGISTRY_USERNAME)
+        CONTAINER_REGISTRY_PASSWORD: $(CONTAINER-REGISTRY-PASSWORD)
+        CONTAINER_REGISTRY_ADDRESS: $(IMG_CONTAINER_REGISTRY_ADDRESS)
+        TAG_IMAGE: $(Build.BuildId)
+        AVA_PROVISIONING_TOKEN: $(AVA-PROVISIONING-TOKEN)
+        VIDEO_INPUT_FOLDER_ON_DEVICE: '/home/localedgeuser/samples/input'
+        VIDEO_OUTPUT_FOLDER_ON_DEVICE: '/var/media/'
+        APPDATA_FOLDER_ON_DEVICE: '/var/lib/videoanalyzer/'
+
+    - task: CopyFiles@2
+      displayName: Copy Edge Deployment Manifest
+      inputs:
+        contents: 'config/**'
+        targetFolder: $(Build.ArtifactStagingDirectory)
+        cleanTargetFolder: true
+        sourceFolder: $(System.DefaultWorkingDirectory)/edgeconfig
+
+    - task: CopyFiles@2
+      displayName: Copy AVA topologies
+      inputs:
+        contents: 'topologies/**'
+        targetFolder: $(Build.ArtifactStagingDirectory)
+        cleanTargetFolder: false
+        sourceFolder: $(System.DefaultWorkingDirectory)/edgesmartvideo
+
+    - task: PublishBuildArtifacts@1
+      displayName: Publish Manifest To Artifacts
+      inputs:
+        pathToPublish: $(Build.ArtifactStagingDirectory)
+        artifactName: DeploymentManifest
+
+- stage: 'Deploy_IoT_Edge'
+  displayName: 'Deploy Images To Edge Device'
+  dependsOn: Generate_Edge_Deployment_Manifest
+  condition: succeeded('Generate_Edge_Deployment_Manifest')
+  jobs:
+  - job: 'Deploy_IoT_Edge'
+    displayName: 'Deploy Images To Edge Device'
+    steps:
+    - task: Bash@3
+      displayName: Add Azure IoT Extensions
+      inputs:
+        targetType: 'inline'
+        script: 'pip install -U iotedgedev'
+
+    - task: DownloadBuildArtifacts@0
+      inputs:
+        buildType: 'current'
+        specificBuildWithTriggering: false 
+        buildVersionToDownload: 'latest'
+        artifactName: DeploymentManifest
+        downloadPath: '$(System.ArtifactsDirectory)' 
+        cleanDestinationFolder: true # Optional
+
+    - task: AzureIoTEdge@2
+      displayName: 'Deploy To IoT Edge Devices'
+      inputs:
+        action: 'Deploy to IoT Edge devices'
+        deploymentFilePath: $(System.ArtifactsDirectory)/DeploymentManifest/config/deployment.json
+        azureSubscription: $(AZURE_RM_SVC_CONNECTION)
+        iothubname: $(IOTHUB_NAME)
+        deploymentid: '$(System.TeamProject)-devops-deployment'
+        priority: '0'
+        deviceOption: 'Single Device'
+        deviceId: $(EDGE_DEVICE_ID)
