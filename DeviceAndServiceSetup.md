@@ -158,8 +158,6 @@ resource "azurerm_iothub" "example" {
 
 Alternatively, you can use Cloud-init to deploy a virtual machine to complete the deployment of an IoTEdge simulator and then test it.
 
-Please refer to the full script [CSE CodeHub](https://dev.azure.com/CSECodeHub/435025%20-%20Telstra%20-%20MLOps%20for%20Smart%20Video%20Platform%20LVA/_git/435025%20-%20Telstra%20-%20IaC?path=/terraform&version=GBmain)
-
 ```javascript 
 # Create Virtual IoT Edge Device
 
